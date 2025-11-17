@@ -1,42 +1,56 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import Footer from "./components/Footer"
 import Main from "./components/Main"
 import SideBar from "./components/SideBar"
 
 function App() {
-  const NASA_KEY = import.meta.env.VITE_NASA_API_KEY
-  const [showModal , setShowModal] = useState(false)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+
+
   useEffect(() => {
-    const localKey = new Date().toLocaleDateString().replaceAll('/','-')
-    const cachedData = localStorage.getItem(localKey)
-    if (cachedData) {
-      setData(JSON.parse(cachedData))
-      return
+    async function fetchAPIData() {
+      const NASA_KEY = import.meta.env.VITE_NASA_API_KEY
+      const url = 'https://api.nasa.gov/planetary/apod' + `?api_key=${NASA_KEY}`
+
+
+      const today = (new Date()).toDateString()
+      const localKey = `NASA-${today}`
+      if (localStorage.getItem(localKey)) {
+        const apiData = JSON.parse(localStorage.getItem(localKey))
+        setData(apiData)
+        console.log('Fetched from cache today')
+        return
+      }
+      localStorage.clear()
+
+      try {
+        const res = await fetch(url)
+        const apiData = await res.json()
+        localStorage.setItem(localKey, JSON.stringify(apiData))
+        setData(apiData)
+        console.log('Fetched from API today')
+      } catch (err) {
+        console.log(err.message)
+      }
     }
-    fetch(`https://api.nasa.gov/planetary/apod?api_key=${NASA_KEY}`)
-      .then(response => response.json())
-      .then(data => {
-        localStorage.clear()
-        localStorage.setItem(localKey, JSON.stringify(data))
-        setData(data)
-      })
-      .catch(error => {
-        console.error('Error fetching data from NASA API:', error.message)
-      })
+    fetchAPIData()
   }, [])
+
   return (
     <>
-      { data ? (<Main data={data} />) : (
+      {data ? (<Main data={data} />) : (
         <div className="loadingState">
-          <i className="fa-solid fa-gear" ></i>
+          <i className="fa-solid fa-gear"></i>
         </div>
       )}
-      { showModal && (
-        <SideBar setShowModal={setShowModal} data={data} /> )
-      }
-      {data && <Footer setShowModal={setShowModal} data={data} /> }
+      {showModal && (
+        <SideBar data={data} setShowModal={setShowModal} />
+      )}
+      {data && (
+        <Footer data={data} setShowModal={setShowModal} />
+      )}
     </>
   )
 }
